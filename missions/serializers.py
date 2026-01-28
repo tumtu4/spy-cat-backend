@@ -58,3 +58,33 @@ class MissionSerializer(serializers.ModelSerializer):
             Target.objects.create(mission=mission, **target_data)
 
         return mission
+
+    def update(self, instance, validated_data):
+
+        instance.cat = validated_data.get("cat", instance.cat)
+        instance.completed = validated_data.get("completed", instance.completed)
+        instance.save()
+
+        targets_data = validated_data.get("targets")
+        if targets_data:
+            for target_data in targets_data:
+                target_id = target_data.get("id")
+                if not target_id:
+                    continue
+                try:
+                    target_instance = instance.targets.get(id=target_id)
+                    serializer = TargetSerializer(
+                        target_instance,
+                        data=target_data,
+                        partial=True  # PATCH
+                    )
+                    serializer.is_valid(raise_exception=True)
+                    serializer.save()
+                except Target.DoesNotExist:
+                    continue
+
+        if all(t.completed for t in instance.targets.all()):
+            instance.completed = True
+            instance.save()
+
+        return instance
